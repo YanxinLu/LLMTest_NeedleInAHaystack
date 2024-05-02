@@ -1,4 +1,5 @@
 import os
+import torch
 from operator import itemgetter
 from typing import Optional
 
@@ -55,11 +56,20 @@ class HuggingFace(ModelProvider):
         Returns:
             str: The content of the model's response to the prompt.
         """
+        
         llm_pipeline = pipeline("text-generation",
-                                model=self.model_name,
-                                **self.model_kwargs)
-        response = await llm_pipeline(prompt)
-
+                                model=self.model,
+                                tokenizer=self.tokenizer,
+                                torch_dtype=torch.float16,
+                                device_map="auto")
+        response = llm_pipeline(prompt,
+                            do_sample=True,
+                            temperature=0.1,
+                            max_new_tokens=300,
+                            top_p=0.9,
+                            num_return_sequences=1,
+                            eos_token_id=self.tokenizer.eos_token_id
+                        )
         return response
 
     def generate_prompt(self, context: str, retrieval_question: str) -> str | list[dict[str, str]]:
@@ -73,17 +83,10 @@ class HuggingFace(ModelProvider):
         Returns:
             list[dict[str, str]]: A list of dictionaries representing the structured prompt, including roles and content for system and user messages.
         """
-        return [{
-            "role": "system",
-            "content": "You are a helpful AI bot that answers questions for a user. Keep your response short and direct"
-        },
+        return [
             {
                 "role": "user",
-                "content": context
-            },
-            {
-                "role": "user",
-                "content": f"{retrieval_question} Don't give information outside the document or repeat your findings"
+                "content": f"{context}\n\n{retrieval_question} Don't give information outside the document or repeat your findings"
             }]
 
     def encode_text_to_tokens(self, text: str) -> list[int]:
