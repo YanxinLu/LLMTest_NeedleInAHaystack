@@ -70,7 +70,7 @@ class HuggingFace(ModelProvider):
                             num_return_sequences=1,
                             eos_token_id=self.tokenizer.eos_token_id
                         )
-        return response
+        return response[0]['generated_text'][1]['content']
 
     def generate_prompt(self, context: str, retrieval_question: str) -> str | list[dict[str, str]]:
         """
